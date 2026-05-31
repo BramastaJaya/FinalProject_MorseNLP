@@ -3,6 +3,8 @@
 # Retrieved 2026-05-23, License - CC BY-SA 4.0
 import network
 import ubinascii
+import gc
+gc.collect()
 
 sta_if = network.WLAN(network.STA_IF)
 if not sta_if.isconnected():
