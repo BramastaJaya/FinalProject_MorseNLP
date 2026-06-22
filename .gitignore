@@ -5,8 +5,8 @@ __pycache__/
 
 # C extensions
 *.so
-
 # Distribution / packaging
+
 .Python
 .conda
 build/
@@ -34,10 +34,14 @@ MANIFEST
 *.spec
 
 # Installer logs
+/model/RNN/rnn_spellchecker.ipynb
+.local
+model/others_dataset
 pip-log.txt
 pip-delete-this-directory.txt
-
+/model/spell_checker_interface.ipynb
 # Unit test / coverage reports
+test
 htmlcov/
 .tox/
 .nox/
@@ -51,7 +55,7 @@ coverage.xml
 .hypothesis/
 .pytest_cache/
 cover/
-
+/model/GEC_GEE_datasets
 # Translations
 *.mo
 *.pot
