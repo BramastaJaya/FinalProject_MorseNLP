@@ -1,6 +1,6 @@
 # ESP32 Morse Decoder with FastAPI NLP Backend
 
-Sistem IoT berbasis ESP32 untuk menerjemahkan input tombol Morse menjadi teks, lalu mengirim kalimat tersebut ke backend FastAPI di laptop melalui Wi-Fi lokal. Backend menampilkan halaman web lokal dan menjalankan dua model koreksi teks bahasa Indonesia:
+Sistem IoT berbasis ESP32 untuk menerjemahkan input tombol Morse menjadi teks, kalimat dikonversi dikirim menuju ke backend FastAPI melalui Wi-Fi lokal. Backend menampilkan halaman web lokal dan menjalankan dua model koreksi teks bahasa Indonesia:
 
 - **N-gram spell checker**: `model/n_gram/ngram_spell_checker.py`
 - **RNN spell checker**: `model/RNN/specil_rnn_spellchecker.py`
@@ -84,7 +84,7 @@ Di `main.py`, sesuaikan Wi-Fi dan IP backend laptop:
 ```python
 wifi_name = "Nama_WiFi"
 password = "Password_WiFi"
-BACKEND_HOST = "10.230.213.13"
+BACKEND_HOST = "Your local IP"
 BACKEND_PORT = 8000
 ```
 
@@ -110,22 +110,6 @@ Koreksi teks manual:
 
 ```powershell
 Invoke-RestMethod "http://localhost:8000/api/esp32?text=ak%20mw%20makn"
-```
-
-Contoh respons:
-
-```json
-{
-  "input": "ak mw makn",
-  "corrected": {
-    "ngram": "aku mau makan",
-    "rnn": "aku mau makan"
-  },
-  "models": {
-    "ngram": "ready",
-    "rnn": "ready"
-  }
-}
 ```
 
 Endpoint yang tersedia:
@@ -160,22 +144,8 @@ Tes model langsung:
 .env\python.exe model\RNN\specil_rnn_spellchecker.py correct "ak mw makn"
 ```
 
-Output:
-
-```text
-aku mau makan
-```
-
 Bangun ulang split SPECIL dan latih ulang model jika dataset mentah berubah:
 
 Buka dan jalankan semua cell di `model/model_pipeline.ipynb`.
 
 ---
-
-## Catatan
-
-- FastAPI harus berjalan di laptop sebelum ESP32 mengirim data.
-- ESP32 dan laptop harus berada di Wi-Fi yang sama.
-- Jika perangkat lain tidak bisa membuka `http://<ip-laptop>:8000`, cek Windows Firewall.
-- Model RNN menggunakan TensorFlow/Keras, sehingga dijalankan di laptop, bukan langsung di ESP32.
-- Model tidak menyimpan tabel jawaban langsung per kalimat; slang Indonesia dipakai sebagai normalisasi sebelum koreksi.
