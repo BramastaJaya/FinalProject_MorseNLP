@@ -7,9 +7,9 @@ import gc
 gc.collect()
 #Menghubungkan ke koneksi LAN
 wlan = network.WLAN(network.STA_IF)
-wifi_name = 'Bi'
-password = '31031202'
-BACKEND_HOST = "10.120.161.13"
+wifi_name = 'HOST NAME'
+password = 'PASSWORD'
+BACKEND_HOST = "YOUR IP"
 BACKEND_PORT = 8000
 if not wlan.isconnected():
     wlan.active(False)
