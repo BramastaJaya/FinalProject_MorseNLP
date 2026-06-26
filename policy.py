@@ -24,7 +24,15 @@ def main():
 
     with gzip.open(ROOT / "model" / "n_gram" / "ngram_spell_checker.json.gz", "rt", encoding="utf-8") as f:
         ngram = json.load(f)
-    assert set(ngram) == {"unigram", "bigram", "edits"}
+    assert {"unigram", "bigram", "edits"} - set(ngram)
+    assert "indonesian_vocabulary" in ngram
+    assert "word_frequency_table" in ngram
+    assert "char_ngram_frequency_table" in ngram
+    assert "ngram_inverted_index" in ngram
+    assert "model_config" in ngram
+    assert "corpus_metadata" in ngram
+    assert ngram["model_config"]["model"] == "indonesian_char_ngram_spellchecker"
+    assert set(ngram["char_ngram_frequency_table"]) == {"1", "2", "3"}
     print("ok")
 
 

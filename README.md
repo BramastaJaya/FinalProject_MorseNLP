@@ -23,7 +23,7 @@ ESP32 + tombol Morse
 Komponen utama:
 
 - `main.py`: firmware MicroPython untuk ESP32. Membaca tombol Morse dan mengirim kalimat ke backend.
-- `backend_app.py`: backend FastAPI dan halaman web.
+- `app.py`: backend FastAPI dan halaman web.
 - `model/model_pipeline.ipynb`: notebook untuk split SPECIL, train n-gram, train RNN, dan verifikasi artifact.
 - `model/specil_train.csv`: data latih gabungan dari semua CSV SPECIL.
 - `model/specil_test.csv`: data uji SPECIL yang tidak dipakai saat training.
@@ -58,7 +58,7 @@ Install dependency:
 Jalankan backend dari root project:
 
 ```powershell
-.env\python.exe -m uvicorn backend_app:app --host 0.0.0.0 --port 8000
+.env\python.exe -m uvicorn app:app --host 0.0.0.0 --port 8000
 ```
 
 Buka web lokal:

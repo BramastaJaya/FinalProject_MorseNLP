@@ -9,7 +9,7 @@ gc.collect()
 wlan = network.WLAN(network.STA_IF)
 wifi_name = 'Bi'
 password = '31031202'
-BACKEND_HOST = "10.230.213.13"
+BACKEND_HOST = "10.120.161.13"
 BACKEND_PORT = 8000
 if not wlan.isconnected():
     wlan.active(False)
@@ -18,6 +18,7 @@ if not wlan.isconnected():
     wlan.connect(wifi_name, password)
     while not wlan.isconnected():
         pass
+
 print('network config:', wlan.ifconfig())
 m = wlan.config("mac")
 mac = ('%02x:%02x:%02x:%02x:%02x:%02x').upper() %(m[0],m[1],m[2],m[3],m[4],m[5])
@@ -36,39 +37,51 @@ def url_encode(text):
     return encoded
 
 
-def send_to_server(data):
+def conn(data):
     path = "/api/esp32?text=" + url_encode(data)
     request = (
-        "GET {} HTTP/1.1\r\n"
+        "GET {} HTTP/1.0\r\n"
         "Host: {}:{}\r\n"
         "Connection: close\r\n"
         "\r\n"
     ).format(path, BACKEND_HOST, BACKEND_PORT)
     client = None
+    sent = False
     try:
         client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        client.settimeout(5)
+        terminal_log("Menghubungkan ke backend...")
         client.connect((BACKEND_HOST, BACKEND_PORT))
-        client.send(request.encode("utf-8"))
-        client.recv(128)
-        print("Data telah terkirim ke backend FastAPI")
+        terminal_log("Mengirim data ke backend...")
+        if hasattr(client, "sendall"):
+            client.sendall(request.encode("utf-8"))
+        else:
+            client.send(request.encode("utf-8"))
+        sent = True
+        terminal_log("Data telah terkirim ke backend FastAPI")
         return True
     except Exception as e:
-        print("Gagal mengirim data ke backend:", e)
+        if sent:
+            terminal_log("Backend menutup koneksi setelah menerima data: " + str(e))
+            return True
+        terminal_log("Gagal mengirim data ke backend: " + str(e))
     finally:
         if client is not None:
             client.close()
     return False
 
-#Konfigurasi Tombol dari Mikrokontroler
-PIN_TOMBOL_MORSE  = 5
+#Konfigurasi input dari Mikrokontroler
+PIN_IR_MORSE      = 5
 PIN_TOMBOL_SUBMIT = 18
-PIN_TOMBOL_SEND   = 19
+PIN_PIR_SEND      = 19
 PIN_BUZZER        = 22
 PIN_LED           = 21
+IR_ACTIVE         = 0 
+PIR_SEND_ACTIVE   = 1
 
-tombol_morse  = machine.Pin(PIN_TOMBOL_MORSE, machine.Pin.IN, machine.Pin.PULL_UP)
+ir_morse      = machine.Pin(PIN_IR_MORSE, machine.Pin.IN, machine.Pin.PULL_UP)
 tombol_submit = machine.Pin(PIN_TOMBOL_SUBMIT, machine.Pin.IN, machine.Pin.PULL_UP)
-tombol_send = machine.Pin(PIN_TOMBOL_SEND, machine.Pin.IN, machine.Pin.PULL_UP)
+pir_send = machine.Pin(PIN_PIR_SEND, machine.Pin.IN)
 buzzer = machine.Pin(PIN_BUZZER, machine.Pin.OUT)
 led    = machine.Pin(PIN_LED, machine.Pin.OUT)
 
@@ -80,9 +93,11 @@ DOT_MAX = 0.2
 #Menampung kode morse dan kalimat akhir
 current_letter_code = ""  # Menampung dot/dash (misal: "-.-")
 final_message = ""        # Menampung kalimat konversi (hasil kode morse yang telah diinput: "AK")
+status_message = ""
 
 is_morse_pressed = False
 last_morse_change = time.ticks_ms()
+pir_send_was_active = False
 
 #Kamus standar internasional Kode Morse
 MORSE_DICT = {
@@ -93,26 +108,34 @@ MORSE_DICT = {
     "-.--": "Y", "--..": "Z",
     ".----": "1", "..---": "2", "...--": "3", "....-": "4", ".....": "5",
     "-....": "6", "--...": "7", "---..": "8", "----.": "9", "-----": "0",
-    ".-.-.-": ".", "--..--": ",", "..--..": "?", "-..-.": "/", "---...": ":"
+    ".-.-.-": ".", "--..--": ",", "-..-.": "/", "---...": ":"
 }
 
-def update_terminal_display():
-    # \r mengembalikan kursor ke awal baris, end="" 
-    print("\r" + final_message + current_letter_code + "", end="")
+Morse = [
+    "A .-     B -...   C -.-.   D -..    E .      F ..-.",
+    "G --.    H ....   I ..     J .---   K -.-    L .-..",
+    "M --     N -.     O ---    P .--.   Q --.-   R .-.",
+    "S ...    T -      U ..-    V ...-   W .--    X -..-",
+    "Y -.--   Z --..",
+    "1 .----  2 ..---  3 ...--  4 ....-  5 .....",
+    "6 -....  7 --...  8 ---..  9 ----.  0 -----",
+    ". .-.-.-   , --..--   / -..-.   : ---...",
+    "IR pin 5: Kode Morse | 18: Konversi/Spasi | PIR pin 19: Kirim",
+]
 
-print(" A : .-     B : -...   C : -.-.   D : -..    E : .      F : ..-.")
-print(" G : --.    H : ....   I : ..     J : .---   K : -.-    L : .-..")
-print(" M : --     N : -.     O : ---    P : .--.   Q : --.-   R : .-.")
-print(" S : ...    T : -      U : ..-    V : ...-   W : .--    X : -..-")
-print(" Y : -.--   Z : --..")
-print(" 1 : .----  2 : ..---  3 : ...--  4 : ....-  5 : .....")
-print(" 6 : -....  7 : --...  8 : ---..  9 : ----.  0 : -----")
-print(" . : .-.-.-   , : --..--   ? : uun--..   / : -..-.   : : ---...")
-print("="*8)
-print("Tekan:\n5: Input Kode\n1x 18: Konversi Kode Morse\n2x 18: Spasi\n")
-print("="*8)
-print("\tMasukkan Kode Morse:")
-print("", end="")
+def render_screen():
+    print("\033[2J\033[H", end="")
+    print(status_message)
+    print("Input: " + final_message + current_letter_code)
+    for line in Morse:
+        print(line)
+
+def terminal_log(message):
+    global status_message
+    status_message = message
+    render_screen()
+
+render_screen()
 
 #Untuk memberikan jeda pada program supaya bersifat synchronus
 time.sleep(2) 
@@ -120,18 +143,18 @@ time.sleep(2)
 try:
   while True:
       current_time = time.ticks_ms()
-      state_morse  = tombol_morse.value()   
+      state_morse  = ir_morse.value()   
       state_submit = tombol_submit.value()  
-      state_send   = tombol_send.value() 
+      state_send   = pir_send.value() 
   
-      #TOMBOL INPUT KODE 0 = MEMBACA, 1 = TIDAK MEMBACA
-      if state_morse == 0 and not is_morse_pressed:
+      # IR INPUT: aktif saat sensor mendeteksi pantulan/halangan
+      if state_morse == IR_ACTIVE and not is_morse_pressed:
           is_morse_pressed = True
           buzzer.value(1) 
           led.value(1)    
           last_morse_change = current_time
           
-      elif state_morse == 1 and is_morse_pressed:
+      elif state_morse != IR_ACTIVE and is_morse_pressed:
           is_morse_pressed = False
           buzzer.value(0) 
           led.value(0)
@@ -144,7 +167,7 @@ try:
                   current_letter_code += "-"
               
               # Segera update tampilan layar agar dot/dash muncul sebelum cursor
-              update_terminal_display()
+              render_screen()
                   
       # TOMBOL SUBMIT
       if state_submit == 0:
@@ -163,29 +186,28 @@ try:
           else:
               if len(final_message) > 0 and not final_message.endswith(" "):
                   final_message += " "
-          print("\r" + " " * (len(final_message) + 10), end="")
-          update_terminal_display()
+          render_screen()
   
           # Lock program selama tombol submit masih ditahan jari (anti-spam)
           while tombol_submit.value() == 0:
             time.sleep_ms(10)
-      if state_send == 0:
+      pir_send_active = state_send == PIR_SEND_ACTIVE
+      if pir_send_active and not pir_send_was_active:
           buzzer.value(1) 
           time.sleep_ms(60) 
           buzzer.value(0)
         
           if len(final_message.strip()) > 0:
-              print(f"\n Teks publikasi ke web: {final_message}")
-              send_to_server(final_message)
+              terminal_log("Teks publikasi ke web: " + final_message)
+              conn(final_message)
               final_message = ""
               current_letter_code = ""
           else:
-              print("\nDraf Kosong, tidak ada input")
-          update_terminal_display()
-          while tombol_send.value() == 0: 
-            time.sleep_ms(10)
+              terminal_log("Draf Kosong, tidak ada input")
+          render_screen()
+      pir_send_was_active = pir_send_active
       time.sleep_ms(10) 
 
 except Exception as e:
-  print("Terminate terminal")
+  terminal_log("Bye bye")
   wlan.active(False)

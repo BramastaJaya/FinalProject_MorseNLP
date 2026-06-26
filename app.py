@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 
 from fastapi import FastAPI
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse
 from pydantic import BaseModel
 
 
@@ -13,7 +13,7 @@ sys.path.insert(0, str(ROOT / "model" / "n_gram"))
 sys.path.insert(0, str(ROOT / "model" / "RNN"))
 
 from ngram_spell_checker import NGramSpellChecker
-from specil_rnn_spellchecker import DEFAULT_SLANG, SpecilRnnSpellChecker, detokenize, words
+from specil_rnn_spellchecker import SpecilRnnSpellChecker
 
 
 app = FastAPI(title="Morse NLP Backend")
@@ -44,16 +44,31 @@ def rnn_model() -> SpecilRnnSpellChecker:
     return _rnn
 
 
+def current_model_status(load: bool = False) -> dict:
+    if load:
+        ngram_model()
+        rnn_model()
+    return _model_status.copy()
+
+
 def run_models(text: str) -> dict:
     text = text.strip()
-    ngram_input = detokenize([DEFAULT_SLANG.get(word, word) for word in words(text)])
+    ngram_details = ngram_model().correct_with_details(text) if text else {
+        "original_text": text,
+        "corrected_text": "",
+        "language": "id",
+        "model": "indonesian_char_ngram_spellchecker",
+        "model_version": "",
+        "corrections": [],
+    }
     result = {
         "input": text,
         "corrected": {
-            "ngram": ngram_model().correct(ngram_input) if text else "",
+            "ngram": ngram_details["corrected_text"],
             "rnn": rnn_model().correct(text) if text else "",
         },
-        "models": _model_status.copy(),
+        "details": {"ngram": ngram_details},
+        "models": current_model_status(),
     }
     _latest.update(result)
     return result
@@ -124,12 +139,13 @@ def home() -> HTMLResponse:
 
 @app.get("/api/latest")
 def latest_state() -> dict:
+    _latest["models"] = current_model_status()
     return _latest
 
 
 @app.get("/api/status")
 def model_status() -> dict:
-    return {"models": _model_status.copy()}
+    return {"models": current_model_status(load=True)}
 
 
 @app.post("/api/correct")
@@ -138,15 +154,18 @@ def correct_text(payload: SentenceIn) -> dict:
 
 
 @app.post("/api/esp32")
-def esp32_sentence(payload: SentenceIn) -> dict:
-    return run_models(payload.text)
+def esp32_sentence(payload: SentenceIn) -> PlainTextResponse:
+    run_models(payload.text)
+    return PlainTextResponse("OK")
 
 
 @app.post("/api/message")
-def legacy_message(payload: SentenceIn) -> dict:
-    return run_models(payload.text)
+def legacy_message(payload: SentenceIn) -> PlainTextResponse:
+    run_models(payload.text)
+    return PlainTextResponse("OK")
 
 
 @app.get("/api/esp32")
-def esp32_sentence_get(text: str) -> dict:
-    return run_models(text)
+def esp32_sentence_get(text: str) -> PlainTextResponse:
+    run_models(text)
+    return PlainTextResponse("OK")

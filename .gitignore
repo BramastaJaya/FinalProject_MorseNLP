@@ -32,7 +32,8 @@ MANIFEST
 #   before PyInstaller builds the exe, so as to inject date/other infos into it.
 *.manifest
 *.spec
-
+/Lapisan Arsitektur.png
+/Lapisan Arsitektur.jpg
 # Installer logs
 /model/RNN/rnn_spellchecker.ipynb
 .local
@@ -41,7 +42,12 @@ pip-log.txt
 pip-delete-this-directory.txt
 /model/spell_checker_interface.ipynb
 # Unit test / coverage reports
-test
+test/architecture/*
+test/document-term-matrix.ipynb
+test/PROJECT_DEFINITION.md
+test/sentiment-model.ipynb
+.agents
+
 htmlcov/
 .tox/
 .nox/
@@ -121,6 +127,7 @@ ipython_config.py
 # pdm.toml
 .pdm-python
 .pdm-build/
+
 
 # pixi
 #   Similar to Pipfile.lock, it is generally recommended to include pixi.lock in version control.
